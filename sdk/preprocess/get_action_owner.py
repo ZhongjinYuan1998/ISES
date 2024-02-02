@@ -4,6 +4,7 @@ from sdk.preprocess.hanlp_tool import hanlp_tool
 def get_action_owner(rule,words):
     activities = []
     sentences, bat_words, order, type = rule.getRules(words)
+    #type代表着节点关联类型
     if type == "none":
         for index,sentence in enumerate(sentences):
             words = bat_words[index]
