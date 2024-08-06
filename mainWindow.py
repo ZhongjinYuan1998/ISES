@@ -17,11 +17,13 @@ from PyQt5.QtGui import QPixmap, QImageReader, QImage
 from language import lan
 
 from sdk.textClassfication.ALBERTService import ALBERTService
+from sdk.textClassfication_shixu.ALBERTService import ALBERTService as ALBERTService_shixu
 from sdk.preprocess.preprocess_sentences import filter_sentences
 from sdk.relationExtraction.relationExtraction import relationExtraction
 from Mythread import MyThread
 
 albert_service = ALBERTService()
+albert_service_shixu = ALBERTService_shixu()
 global editor_list
 editor_list = []
 global language_tab 
@@ -37,6 +39,7 @@ def analyze_f(text, id):
         text = [_ for s in text for _ in s if _ != ""]
     print(text)
     relevant_texts = albert_service.get_relevant_sentence_by_albert(text)
+    shixu = albert_service_shixu.get_shixu_by_albert(relevant_texts)
     # # relevant_texts = text
     print("relevant_texts",relevant_texts)
 
@@ -49,7 +52,7 @@ def analyze_f(text, id):
     # '''
     #     活动图元素及其关系提取
     # '''
-    graph = relationExtraction(filter_texts)
+    graph = relationExtraction(filter_texts,shixu)
     # graph._print()
     filename = str(time.time())
     directory= os.path.join(os.path.dirname(os.path.abspath(__file__)),"result")

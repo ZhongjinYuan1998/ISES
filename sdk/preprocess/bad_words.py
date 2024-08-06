@@ -30,7 +30,7 @@ preprocess_words_1 = [
 ]
 
 no_owner_words = [
-    "其中","密码","用户名"
+    "其中"
 ]
 
 cc_words = [

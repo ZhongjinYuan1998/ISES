@@ -47,13 +47,29 @@ class rules:
     def getInOrder(self):
         return self.data["syncOrder"]
     
-    def getRules(self, words):
-        orders = ["preOrder","postOrder","syncOrder"]
+    def getRules(self, words, shixu, is_use):
+        orders = ["preOrder","syncOrder","postOrder"]
         types = ["both","single"]
         words = "#".join(words)
         results = []
 
-        for order in orders:
+        # for order in orders:
+        if is_use:
+            order = orders[shixu]
+            for type in types:
+                for c in self.data[order][type]:
+                    pattern = '(.*)'
+                    for _ in c[0]:
+                        pattern += _ + '(.*)'
+                    ans = re.findall(pattern, words)
+                    if len(ans) != 0:
+                        ans = list(ans[0])
+                        ans_1 = [_.split("#") for _ in ans if _ != ""]
+                        ans_2 = ["".join(_.split("#")) for _ in ans if _ != ""]
+                        results.append((ans_2, ans_1, order, c[1]))
+        else:
+            # for order in orders:
+            order = "postOrder"
             for type in types:
                 for c in self.data[order][type]:
                     pattern = '(.*)'

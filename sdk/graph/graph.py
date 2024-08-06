@@ -62,10 +62,11 @@ class graph:
         plantuml_str = []
         is_condition = 0
         if flag == 1:
-            plantuml_str.append("if ("+content+") then (是)")
+            plantuml_str.append("|"+node["partition"]+"|\n"+"if ("+content+") then (是)")
             plantuml_str.append("|"+node["partition"]+"|\n:"+node["label"]+";")
         elif flag == -1:
-            plantuml_str.append("elseif ("+content+") then (是)")
+            # print("node",node)
+            plantuml_str.append("|"+node["partition"]+"|\n"+"elseif ("+content+") then (是)")
             plantuml_str.append("|"+node["partition"]+"|\n:"+node["label"]+";")
         elif flag == 2:
             plantuml_str.append("|"+node["partition"]+"|\n:"+node["label"]+";")
@@ -98,6 +99,7 @@ class graph:
             if is_condition == 1:
                 if i == 0:
                     _content = self.get_edge_label(node["id"],child_i)
+                    # _content = "|"+node["partition"]+"|\n"+"elseif ("+content+") then (是)"
                     plantuml_str += self.get_plantuml_str(self.data["nodes"][child_i],1,_content)
                     # plantuml_str.append("endif")
                 elif i < len(node["child"]) - 1:
@@ -125,6 +127,62 @@ class graph:
     def to_plantuml(self):
         # self.node_flag = [0 for _ in range(len(self.data["nodes"]))]
         plantuml_str = self.get_plantuml_str(self.data["nodes"][0])
+
+        for i in range(len(plantuml_str)):
+            if "|\n:分叉;" in plantuml_str[i]:
+                plantuml_str[i] = "|" + plantuml_str[i].split("|")[1] + "|\nfork"
+
+        par = ""
+        for i in reversed(range(len(plantuml_str))):
+            if "|\nif " in plantuml_str[i]:
+                par = "|" + plantuml_str[i].split("|")[1] + "|"
+                break
+
+        p_flag = 0
+        p1_flag = 0
+        p_i = 0
+        p1_i = 0
+        p2_i = 0 
+        p_tmp = []
+        p1_tmp = []
+        for i in range(len(plantuml_str)):
+            if "|\n:可以" in plantuml_str[i]:
+                p_flag = 1
+                p_i = i
+            if p_flag == 1 and "|\n:也可以" in plantuml_str[i] and i - p_i < 4:
+                p1_flag = 1
+                p1_i = i
+            if p_flag == 1 and p1_flag != 1:
+                p_tmp.append(plantuml_str[i])
+            if p1_flag == 1:
+                p1_tmp.append(plantuml_str[i])
+                p2_i = i
+                if plantuml_str[i] in p_tmp:
+                    break
+
+        print("p_tmp",p_tmp)
+        print("p1_tmp",p1_tmp)
+
+        if p1_flag == 1:
+            plantuml_str.insert(p_i,"|" + p_tmp[0].split("|")[1] + "|\nif () then")
+            plantuml_str[p1_i] = "|" + p1_tmp[0].split("|")[1] + "|\nelse"
+            plantuml_str.insert(p2_i+1,"|" + p1_tmp[0].split("|")[1] + "|\nendif")
+
+        # print(self.data["nodes"])
+        print(plantuml_str)
+        temp = []
+        flag = 0
+        for _ in plantuml_str:
+            if "|\n:endif" in _:
+                _ = _.replace("endif","") + "\nendif"
+                flag = 1
+            if flag == 1 and _ == "endif":
+                flag = 0
+            else:
+                temp.append(_)
+
+        plantuml_str = temp
+
         k = -1
         for i in reversed(range(len(plantuml_str))):
             if plantuml_str[i] == "endif":
@@ -138,17 +196,32 @@ class graph:
         if k != -1:
             _p = ""
             for i in reversed(range(len(plantuml_str))):
+                # if "|\nif " in plantuml_str[i] or "|\nelseif " in plantuml_str[i]:
                 if plantuml_str[i].startswith("if ") or plantuml_str[i].startswith("elseif "):
                     _p = "||"
                 if _p == "||" and plantuml_str[i].startswith("|"):
                     _p = "|" + plantuml_str[i].split("|")[1] + "|"
                     break
-            plantuml_str.insert(k,"else (否)")
+
+            # print(plantuml_str)
+            plantuml_str.insert(k,par + "\nelse (否)")
             if _p == "||":
                 plantuml_str.insert(k+1,"stop")
             else:
                 plantuml_str.insert(k+1,_p+"\nstop")
-        return "@startuml\n" + "\n".join(plantuml_str)+"\n@enduml"
+
+        flag = 0
+        for i in reversed(range(len(plantuml_str))):
+            if "else" in plantuml_str[i] and not "elseif" in plantuml_str[i]:
+                break
+            elif "|\nif " in plantuml_str[i]:
+                flag = 1
+                break
+
+        if flag == 0:
+            return "@startuml\n" + "\n".join(plantuml_str)+"\n@enduml"
+        else:
+            return "@startuml\n" + "\n".join(plantuml_str)+"\nelse\nstop\n@enduml"
     
     def to_plantuml_img(self, img_path):
         # 创建PlantUML对象并设置服务器的URL
@@ -221,19 +294,27 @@ class graph:
             # for index in reversed(range(0,len(self.data["nodes"])-1)):
             #     if self.data["nodes"][index]["partition"] == "":
             #         self.data["nodes"][index]["partition"] = self.data["nodes"][index+1]["partition"]
+
             self.setAllNodePartition_1(self.data["nodes"][0])
+
             for index in range(1,len(self.data["nodes"])):
                 if self.data["nodes"][index]["partition"] == "":
                     self.data["nodes"][index]["partition"] = self.data["nodes"][index-1]["partition"]
             for index in reversed(range(0,len(self.data["nodes"])-1)):
                 if self.data["nodes"][index]["partition"] == "":
                     self.data["nodes"][index]["partition"] = self.data["nodes"][index+1]["partition"]
+
+            # for index in reversed(range(0,len(self.data["nodes"])-1)):
+            #     if self.data["nodes"][index]["type"] == "condition":
+            #         self.data["nodes"][index]["partition"] = self.data["nodes"][index+1]["partition"]
     
     def setEndNode(self):
         assert(len(self.data["nodes"])>0)
 
+        # print("forked_nodes",self.forked_nodes)
         if len(self.forked_nodes) != 0:
-            assert(len(self.forked_nodes)>=2)
+            # assert(len(self.forked_nodes)>=2)
+            source_id = len(self.data["nodes"]) - 1
             startNode = {
                 "id":len(self.data["nodes"]),
                 "partition":"",
@@ -243,7 +324,7 @@ class graph:
             }
             edge = {
                 "id":len(self.data["edges"]),
-                "source":len(self.data["nodes"])-1,
+                "source":source_id,
                 "target":startNode["id"],
                 "relation":"",
                 "label":self.condition_label
@@ -251,7 +332,7 @@ class graph:
             self.condition_label = ""
             self.data["edges"].append(edge)
             self.data["nodes"].append(startNode)
-            self.setNodeChild(len(self.data["nodes"])-1,startNode["id"])
+            self.setNodeChild(source_id,startNode["id"])
             endNode = {
                 "id":len(self.data["nodes"]) + len(self.forked_nodes),
                 "partition":"",
@@ -259,9 +340,11 @@ class graph:
                 "type":"join",
                 "child":[]
             }
-            for node in self.forked_nodes:
+            for index,node in enumerate(self.forked_nodes):
                 node["id"] = len(self.data["nodes"])
                 self.data["nodes"].append(node)
+                if index > 0 and node["partition"] == "":
+                    node["partition"] = self.forked_nodes[index-1]["partition"]
                 self.setNodeChild(startNode["id"],node["id"])
                 edge1 = {
                     "id":len(self.data["edges"]),
@@ -288,7 +371,7 @@ class graph:
 
         nodes_len = len(self.data["nodes"])
         for i in range(nodes_len):
-            if len(self.data["nodes"][i]["child"]) == 0 and self.data["nodes"][i]["type"] != "end": 
+            if len(self.data["nodes"][i]["child"]) == 0 and self.data["nodes"][i]["type"] != "end" and not self.data["nodes"][i]["label"].startswith("nostop"): 
                 id = len(self.data["nodes"])
                 endNode = {
                     "id":id,
@@ -310,6 +393,8 @@ class graph:
                 self.setNodePartition(id,self.data["nodes"][i]["partition"])
                 self.setNodeChild(self.data["nodes"][i]["id"],id)
                 self.setAllNodePartition()
+            if self.data["nodes"][i]["label"].startswith("nostop"):
+                self.data["nodes"][i]["label"] = self.data["nodes"][i]["label"][6:]
 
     def addNextNode(self,curNode,relation="next"):
         if curNode["type"] != "forked":
@@ -441,10 +526,158 @@ class graph:
             self.cur_nodes = []
         elif curNode["type"] == "forked":
             self.forked_nodes.append(curNode)
+
+    def addNextNode_v2(self,activities:list):
+        condition_no = 0
+        for activity in activities:
+            if activity["type"] == "condition_no":
+                condition_no = 1
+                break
+
+        for index, activity in enumerate(activities):
+            curNode = activity
+            relation = "next"
+            if (condition_no == 1 and index == len(activities) - 1):
+                curNode["label"] = "endif" + curNode["label"]
+            if (index < len(activities)-1 and activities[index+1]["type"] == "condition_no" and condition_no == 1):
+                curNode["label"] = "nostop" + curNode["label"]
+            if curNode["type"] != "forked":
+                if len(self.forked_nodes) != 0:
+                    # print(self.forked_nodes)
+                    # assert(len(self.forked_nodes)>=2)
+                    lastNodeId = len(self.data["nodes"])-1
+                    startNode = {
+                        "id":len(self.data["nodes"]),
+                        "partition":"",
+                        "label":"分叉",
+                        "type":"fork",
+                        "child":[]
+                    }
+                    edge = {
+                        "id":len(self.data["edges"]),
+                        "source":lastNodeId,
+                        "target":startNode["id"],
+                        "relation":"",
+                        "label":self.condition_label
+                    }
+                    self.condition_label = ""
+                    self.data["edges"].append(edge)
+                    self.data["nodes"].append(startNode)
+                    self.setNodeChild(lastNodeId,startNode["id"])
+                    endNode = {
+                        "id":len(self.data["nodes"]) + len(self.forked_nodes),
+                        "partition":"",
+                        "label":"连接",
+                        "type":"join",
+                        "child":[]
+                    }
+                    for node in self.forked_nodes:
+                        node["id"] = len(self.data["nodes"])
+                        self.data["nodes"].append(node)
+                        if node["partition"] == "":
+                            node["partition"] = self.forked_nodes[0]["partition"]
+                        self.setNodeChild(startNode["id"],node["id"])
+                        edge1 = {
+                            "id":len(self.data["edges"]),
+                            "source":startNode["id"],
+                            "target":node["id"],
+                            "relation":"",
+                            "label":self.condition_label
+                        }
+                        self.condition_label = ""
+                        self.data["edges"].append(edge1)
+                        edge2 = {
+                            "id":len(self.data["edges"]),
+                            "source":node["id"],
+                            "target":endNode["id"],
+                            "relation":"",
+                            "label":self.condition_label
+                        }
+                        self.condition_label = ""
+                        self.data["edges"].append(edge2)
+                    self.data["nodes"].append(endNode)
+                    for node in self.forked_nodes:
+                        self.setNodeChild(node["id"],endNode["id"])
+                    self.forked_nodes = []
+
+            special_types = ["condition_no","merge","forked","condition"]
+            if curNode["type"] not in special_types:
+                if self.is_connect == 0:
+                    startNodeId = len(self.data["nodes"])-1
+                    # if len(self.cur_nodes) != 0:
+                    #     startNodeId = self.cur_nodes[1]
+                else:
+                    startNodeId = self.getConditionNodeId()
+                    self.is_connect = 0
+                if startNodeId == 0 and self.data["nodes"][0]["partition"] == "":
+                    self.data["nodes"][0]["partition"] = curNode["partition"]
+                if curNode["partition"] == "":
+                    curNode["partition"] = self.condition_partition
+                    self.condition_partition = ""
+                if self.condition_partition != "":
+                    self.condition_partition = ""
+                curNode["id"] = len(self.data["nodes"])
+                self.data["nodes"].append(curNode)
+                self.setNodeChild(startNodeId,curNode["id"])
+                edge = {
+                    "id":len(self.data["edges"]),
+                    "source":startNodeId,
+                    "target":curNode["id"],
+                    "relation":relation,
+                    "label":self.condition_label
+                }
+                self.condition_label = ""
+                self.data["edges"].append(edge)
+            elif curNode["type"] == "condition":
+                # print(curNode)
+                self.condition_label = curNode["label"]
+                self.condition_partition = curNode["partition"]
+                startNodeId = self.getConditionNodeId()
+                if startNodeId == len(self.data["nodes"])-1:
+                    self.data["nodes"][-1]["type"] = "condition"
+                else:
+                    if self.compare_str(curNode["label"],self.getConditionEdgeLabel()) >= 0.1:
+                        self.is_connect = 1
+            elif curNode["type"] == "condition_no":
+                startNodeId = self.getConditionNodeId()
+                if startNodeId == 0 and self.data["nodes"][0]["partition"] == "":
+                    self.data["nodes"][0]["partition"] = curNode["partition"]
+                curNode["id"] = len(self.data["nodes"])
+                self.data["nodes"].append(curNode)
+                self.setNodeChild(startNodeId,curNode["id"])
+                edge = {
+                    "id":len(self.data["edges"]),
+                    "source":startNodeId,
+                    "target":curNode["id"],
+                    "relation":relation,
+                    "label":self.condition_label
+                }
+                self.condition_label = ""
+                self.data["edges"].append(edge)
+                self.cur_nodes = [len(self.data["nodes"])-2,len(self.data["nodes"])-1]
+            elif curNode["type"] == "merge":
+                assert(len(self.data["nodes"])>1)
+                curNode["id"] = len(self.data["nodes"])
+                self.data["nodes"].append(curNode)
+                for node_id in self.cur_nodes:
+                    self.setNodeChild(node_id,curNode["id"])
+                    edge = {
+                        "id":len(self.data["edges"]),
+                        "source":node_id,
+                        "target":curNode["id"],
+                        "relation":relation,
+                        "label":self.condition_label
+                    }
+                    self.condition_label = ""
+                    self.data["edges"].append(edge)
+                self.cur_nodes = []
+            elif curNode["type"] == "forked":
+                self.forked_nodes.append(curNode)
  
     def addActivities(self,activities:list):
-        for activity in activities:
-            self.addNextNode(activity)
+        # for activity in activities:
+        #     self.addNextNode(activity)
+        self.addNextNode_v2(activities)
 
     def getConditionNodeId(self):
         nodes_len = len(self.data["nodes"])

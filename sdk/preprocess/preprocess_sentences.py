@@ -3,30 +3,33 @@ from sdk.preprocess.bad_words import bad_words,preprocess_words,preprocess_words
 
 def filter_sentences(sentences:list):
     sentences = filter_sentences_by_preprocess_words(sentences)
-    print("1",sentences)
     sentences = split_sentence_by_mark(sentences)
-    print("2",sentences)
     sentences = filter_sentences_by_bad_words(sentences)
-    print("3",sentences)
-    # Hanlp = hanlp_tool(sentences)
-    # print(Hanlp.getResult())
-    # pos = Hanlp.posTag()
-    # sentences = filter_sentences_by_verb_words(sentences, pos)
-    # print("4",sentences)
+    for index,sen in enumerate(sentences):
+        Hanlp = hanlp_tool(sentences[index])
+        pos = Hanlp.posTag()
+        # print(pos,sentences[index])
+        sentences[index] = filter_sentences_by_verb_words(sentences[index], pos)
+        # print(sentences)
     return sentences
 
 def split_sentence_by_mark(sentences:list):
     mark = ["，", "。", "\n", "\r\n", ";", "；",","]
-    for _ in mark:
-        sentences = [s.split(_) for s in sentences]
-        sentences = [_ for s in sentences for _ in s]
+    sentences = [[s] for s in sentences]
+    for index,sentence in enumerate(sentences):
+        for _ in mark:
+            sentences[index] = [s.split(_) for s in sentences[index]]
+            sentences[index] = [s for sen in sentences[index] for s in sen if s != ""]
 
     return sentences
 
 def filter_sentences_by_bad_words(sentences:list):
-    return [_ for _ in sentences if _ not in bad_words]
+    for index,sen in enumerate(sentences):
+        sentences[index] = [_ for _ in sentences[index] if _ not in bad_words]
+    return sentences
 
 def filter_sentences_by_verb_words(sentences,pos):
+    # print("test",sentences,pos)
     verb_words = ["VV","VC","VE"]
     results = []
     for index,sentence in enumerate(sentences):
@@ -37,6 +40,7 @@ def filter_sentences_by_verb_words(sentences,pos):
                 break
         if is_action:
             results.append(sentence)
+    # print("s",results)
     return results
 
 def filter_sentences_by_preprocess_words(sentences):
