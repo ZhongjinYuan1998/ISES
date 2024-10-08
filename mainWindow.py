@@ -21,6 +21,7 @@ from sdk.textClassfication_shixu.ALBERTService import ALBERTService as ALBERTSer
 from sdk.preprocess.preprocess_sentences import filter_sentences
 from sdk.relationExtraction.relationExtraction import relationExtraction
 from Mythread import MyThread
+import copy
 
 albert_service = ALBERTService()
 albert_service_shixu = ALBERTService_shixu()
@@ -39,14 +40,26 @@ def analyze_f(text, id):
         text = [_ for s in text for _ in s if _ != ""]
     print(text)
     relevant_texts = albert_service.get_relevant_sentence_by_albert(text)
-    shixu = albert_service_shixu.get_shixu_by_albert(relevant_texts)
+    relevant_texts_with_shixu = [relevant_texts[0]]
+    for i in range(1,len(relevant_texts)):
+        shixu = albert_service_shixu.get_shixu_by_albert([relevant_texts_with_shixu[-1] + relevant_texts[i]])
+        if shixu[0] == 0:
+            temp = copy.copy(relevant_texts_with_shixu[-1])
+            relevant_texts_with_shixu[-1] = relevant_texts[i]
+            relevant_texts_with_shixu.append(temp)
+        elif shixu[0] == 1:
+            relevant_texts_with_shixu[-1] += "，" + relevant_texts[i]
+        else:
+            relevant_texts_with_shixu.append(relevant_texts[i])
+    # print("relevant_texts_with_shixu", relevant_texts_with_shixu)
+    shixu = albert_service_shixu.get_shixu_by_albert(relevant_texts_with_shixu)
     # # relevant_texts = text
-    print("relevant_texts",relevant_texts)
+    print("relevant_texts",relevant_texts_with_shixu)
 
     # '''
     #     数据预处理：分句；停用词、无用的状语去除
     # '''
-    filter_texts = filter_sentences(relevant_texts)
+    filter_texts = filter_sentences(relevant_texts_with_shixu)
     print(filter_texts)
         
     # '''

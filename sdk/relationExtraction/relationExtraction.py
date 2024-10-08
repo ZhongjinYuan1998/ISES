@@ -3,10 +3,25 @@ from sdk.rules.rules import rules
 from sdk.preprocess.hanlp_tool import hanlp_tool
 from sdk.preprocess.get_action_owner import get_action_owner
 from sdk.preprocess.bad_words import cc_words,preprocess_words_1
+from sdk.textClassfication_shixu.ALBERTService import ALBERTService as ALBERTService_shixu
+import copy
 
 def relationExtraction(sentences:list,shixu:list=[],is_use=True):
     if is_use == False:
         shixu = [2 for _ in range(len(sentences))]
+
+    albert_service_shixu = ALBERTService_shixu()
+    sentences_with_shixu = [sentences[0]]
+    for i in range(1,len(sentences)):
+        t = albert_service_shixu.get_shixu_by_albert([sentences_with_shixu[-1] + sentences[i]])
+        if t[0] == 0:
+            temp = copy.copy(sentences_with_shixu[-1])
+            sentences_with_shixu[-1] = sentences[i]
+            sentences_with_shixu.append(temp)
+        elif t[0] == 1:
+            sentences_with_shixu[-1] += "，" + sentences[i]
+        else:
+            sentences_with_shixu.append(sentences[i])
 
     g = graph()
 
